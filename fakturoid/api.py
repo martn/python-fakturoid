@@ -47,12 +47,8 @@ class Fakturoid(object):
         def subjects_search(*args, **kwargs):
             return self._subjects_search(*args, **kwargs)
 
-        def invoices_download(*args, **kwargs):
-            return self._invoices_download(*args, **kwargs)
-
         self.subjects = subjects_find
         self.subjects.search = subjects_search
-        self.invoices.download = invoices_download
 
     def model_api(model_type=None):
         def wrap(fn):
@@ -95,7 +91,7 @@ class Fakturoid(object):
         return mapi.find(*args, **kwargs)
 
     @model_api(Invoice)
-    def _invoices_download(self, mapi, *args, **kwargs):
+    def download_invoice(self, mapi, *args, **kwargs):
         return mapi.download(*args, **kwargs)
 
     @model_api(Invoice)
