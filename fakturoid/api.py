@@ -36,18 +36,23 @@ class Fakturoid(object):
             Message: MessagesApi(self),
         }
 
-        # Hack to expose full seach on subjects as
+        # Hack to expose full search on subjects as
         #
         #     fa.subjects.search()
         #
-        # TODO Keep this API but make internal code redesing in future.
+        # TODO Keep this API but make internal code redesign in future.
         def subjects_find(*args, **kwargs):
             return self._subjects_find(*args, **kwargs)
 
         def subjects_search(*args, **kwargs):
             return self._subjects_search(*args, **kwargs)
+
+        def invoices_download(*args, **kwargs):
+            return self._invoices_download(*args, **kwargs)
+
         self.subjects = subjects_find
         self.subjects.search = subjects_search
+        self.invoices.download = invoices_download
 
     def model_api(model_type=None):
         def wrap(fn):
@@ -88,6 +93,10 @@ class Fakturoid(object):
     @model_api(Invoice)
     def invoices(self, mapi, *args, **kwargs):
         return mapi.find(*args, **kwargs)
+
+    @model_api(Invoice)
+    def _invoices_download(self, mapi, *args, **kwargs):
+        return mapi.download(*args, **kwargs)
 
     @model_api(Invoice)
     def fire_invoice_event(self, mapi, id, event, **kwargs):
@@ -266,6 +275,18 @@ class InvoicesApi(CrudModelApi):
     EVENT_ARGS = {
         'pay': {'paid_at', 'paid_amount'}
     }
+
+    def download(self, invoice_id):
+        """
+        Initializes invoice download
+        :param invoice_id:
+        :return:
+        """
+        if not isinstance(invoice_id, int):
+            raise TypeError('invoice_id must be int')
+
+        response = self.session._get('invoices/{0}/download.pdf'.format(invoice_id))
+        return self.unpack(response)
 
     def fire(self, invoice_id, event, **kwargs):
         if not isinstance(invoice_id, int):
