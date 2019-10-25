@@ -126,22 +126,26 @@ class Fakturoid(object):
             return int(m.group(1))
         return None
 
-    def _make_request(self, method, success_status, endpoint, **kwargs):
-        url = "https://app.fakturoid.cz/api/v2/accounts/{0}/{1}.json".format(self.slug, endpoint)
+    def _make_request(self, method, success_status, endpoint, ctype="json", **kwargs):
+        url = "https://app.fakturoid.cz/api/v2/accounts/{0}/{1}.{2}".format(self.slug, endpoint, ctype)
         headers = {'User-Agent': self.user_agent}
         headers.update(kwargs.pop('headers', {}))
         r = getattr(requests, method)(url, auth=(self.email, self.api_key), headers=headers, **kwargs)
+
         try:
             json_result = r.json()
         except Exception:
             json_result = None
 
         if r.status_code == success_status:
-            response = {'json': json_result}
-            if 'link' in r.headers:
-                page_count = self._extract_page_link(r.headers['link'])
-                if page_count:
-                    response['page_count'] = page_count
+            if ctype == "json":
+                response = {'json': json_result}
+                if 'link' in r.headers:
+                    page_count = self._extract_page_link(r.headers['link'])
+                    if page_count:
+                        response['page_count'] = page_count
+            else:
+                response = r.content
             return response
 
         if json_result and "errors" in json_result:
@@ -149,8 +153,8 @@ class Fakturoid(object):
 
         r.raise_for_status()
 
-    def _get(self, endpoint, params=None):
-        return self._make_request('get', 200, endpoint, params=params)
+    def _get(self, endpoint, params=None, ctype="json"):
+        return self._make_request('get', 200, endpoint, params=params, ctype=ctype)
 
     def _post(self, endpoint, data, params=None):
         return self._make_request('post', 201, endpoint, headers={'Content-Type': 'application/json'}, data=json.dumps(data), params=params)
@@ -280,9 +284,7 @@ class InvoicesApi(CrudModelApi):
         """
         if not isinstance(invoice_id, int):
             raise TypeError('invoice_id must be int')
-
-        response = self.session._get('invoices/{0}/download.pdf'.format(invoice_id))
-        return self.unpack(response)
+        return self.session._get('invoices/{0}/download'.format(invoice_id), ctype="pdf")
 
     def fire(self, invoice_id, event, **kwargs):
         if not isinstance(invoice_id, int):
